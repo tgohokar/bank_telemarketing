@@ -1,0 +1,716 @@
+---
+title: "Bank Marketing"
+author: "Mukul Gupta"
+date: "September 2, 2020"
+output:
+  html_document: default
+  word_document: default
+---
+
+#importing all the libraries
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+
+packages<- c('dplyr','ggplot2','readxl','tm','SnowballC','topicmodels','RODBC','party','rpart','rpart.plot','rattle','partykit',
+             'caret','ranger','e1071','ROCR','randomForest','data.table','ROSE','xgboost' ,'doParallel','parallel'
+             ,'glmnet','pdftools','readtext','textreadr','tidytext','arules','InformationValue','tidyr','fastcluster','Rtsne','cluster','clustMixType',
+            'dplyr','ggplot2','readxl','tm','SnowballC','topicmodels','RODBC','party','rpart','rpart.plot','rattle','partykit',
+             'caret','ranger','e1071','ROCR','randomForest','data.table','caret','ROSE','xgboost','parallel','doParallel','glmnet','pdftools','readtext','textreadr','tidytext','arules','InformationValue','stats','ggfortify','corrplot','factoextra','fpc','dbscan','cluster','factoextra','purrr','tidyr','arulesViz','Rtsne','cowplot','ada','Metrics','readr','C50')
+
+for (i in packages) { #Installs packages if not yet installed
+  if (!require(i, character.only = TRUE)) install.packages(i)
+  library(i,character.only=TRUE,quietly=TRUE,verbose=FALSE)
+}
+
+```
+
+## Uploading the data
+
+```{r}
+bank_data<-read.csv("C:/Users/mukul_gupta/Documents/personal/paper/bank-additional/bank-additional/bank-additional-full.csv",
+                    sep=';',stringsAsFactors = FALSE)
+
+dim(bank_data)
+
+str(bank_data)
+
+summary(bank_data)
+
+```
+
+## Cleaning the data
+
+Data contains many numeric and character variables. This code snippet will cOnvert the character variables to factors and will check for outliers & missing data. There are no missing values in the data. A couple of variables ;for example: campaign and previous; have outliers but capping them or removing them will be a loss of important information so we are keeping them as it is. 
+
+```{r}
+#Converting character variables to factor
+#adding anything below thousand in other bucket
+
+table(bank_data$job)
+# bank_data<-bank_data%>%
+  # mutate(job=ifelse(job=='student'|job=='unknown','Other',job))
+bank_data$job<-as.factor(bank_data$job)
+
+table(bank_data$marital)
+bank_data$marital<-as.factor(bank_data$marital)
+
+table(bank_data$education)
+# bank_data<-bank_data%>%
+  # mutate(education=ifelse(education=='illiterate'|education=='unknown','Other',education))
+bank_data$education<-as.factor(bank_data$education)
+
+#remove default variable
+table(bank_data$default)
+# bank_data<-bank_data%>%
+  # mutate(default=ifelse(default=='yes'|default=='unknown','Other',default))
+bank_data$default<-as.factor(bank_data$default)
+
+table(bank_data$housing)
+bank_data$housing<-as.factor(bank_data$housing)
+
+table(bank_data$loan)
+bank_data$loan<-as.factor(bank_data$loan)
+
+table(bank_data$contact)
+bank_data$contact<-as.factor(bank_data$contact)
+
+table(bank_data$month)
+# bank_data<-bank_data%>%
+  # mutate(month=ifelse(month=='dec'|month=='mar'|month=='oct'|month=='sep','Other',month))
+bank_data$month<-as.factor(bank_data$month)
+
+table(bank_data$day_of_week)
+bank_data$day_of_week<-as.factor(bank_data$day_of_week)
+
+table(bank_data$poutcome)
+bank_data$poutcome<-as.factor(bank_data$poutcome)
+
+table(bank_data$y)
+bank_data$y<-as.factor(bank_data$y)
+
+
+summary(bank_data$campaign)
+boxplot(bank_data$campaign)
+
+
+summary(bank_data$previous)
+boxplot(bank_data$previous)
+
+
+summary(bank_data$pdays)
+boxplot(bank_data$pdays)
+
+##correlation matrix
+bank_data_continious_data<- select_if(bank_data, is.numeric)
+
+n<-cor(bank_data_continious_data)
+corrplot::corrplot.mixed(n)
+
+```
+
+## Exploratory analysis
+
+
+```{r}
+#job
+ggplot(bank_data,aes(job))+geom_bar(aes(fill=y)) + theme(axis.text.x = element_text(angle = 60, hjust = 1))
+
+#marital
+ggplot(bank_data,aes(marital))+geom_bar(aes(fill=y)) + theme(axis.text.x = element_text(angle = 60, hjust = 1))
+
+#education
+ggplot(bank_data,aes(education))+geom_bar(aes(fill=y)) + theme(axis.text.x = element_text(angle = 60, hjust = 1))
+
+#default
+ggplot(bank_data,aes(default))+geom_bar(aes(fill=y)) + theme(axis.text.x = element_text(angle = 60, hjust = 1))
+
+#housing
+ggplot(bank_data,aes(housing))+geom_bar(aes(fill=y)) + theme(axis.text.x = element_text(angle = 60, hjust = 1))
+
+#loan
+ggplot(bank_data,aes(loan))+geom_bar(aes(fill=y)) + theme(axis.text.x = element_text(angle = 60, hjust = 1))
+
+#contact
+ggplot(bank_data,aes(contact))+geom_bar(aes(fill=y)) + theme(axis.text.x = element_text(angle = 60, hjust = 1))
+
+#month
+ggplot(bank_data,aes(month))+geom_bar(aes(fill=y)) + theme(axis.text.x = element_text(angle = 60, hjust = 1))
+
+#day_of_week
+ggplot(bank_data,aes(day_of_week))+geom_bar(aes(fill=y)) + theme(axis.text.x = element_text(angle = 60, hjust = 1))
+
+
+#poutcome
+ggplot(bank_data,aes(poutcome))+geom_bar(aes(fill=y)) + theme(axis.text.x = element_text(angle = 60, hjust = 1))
+
+```
+
+##Model building
+###splitting the data into 70:30
+###Removing duration variable as adding that will amount to data leakage
+
+```{r}
+bank_data_1<-bank_data%>%
+  select(-one_of('duration'))
+
+set.seed(42)
+
+intrain <- createDataPartition(y = bank_data_1$y, p = 0.7, list = FALSE)
+train <- bank_data_1[intrain,]
+test <- bank_data_1[-intrain,]
+
+table(train$y)
+table(train$y)
+
+```
+
+
+#C5.0
+```{r}
+##training the model
+c50_model<-C5.0(y~.,train)
+
+#predicting on training dataset
+pred_c50_train <- predict(c50_model,newdata = train,type='prob')[,2]
+predictions_c50_train<-prediction(pred_c50_train,train$y)
+roc_perf_c50_train <- performance(predictions_c50_train, "tpr", "fpr")
+
+#predicting on test dataset
+pred_c50 <- predict(c50_model,newdata = test,type='prob')[,2]
+predictions_c50<-prediction(pred_c50,test$y)
+roc_perf_c50 <- performance(predictions_c50, "tpr", "fpr")
+
+
+test$y_1<-ifelse(as.character(test$y)=="yes",1,0)
+
+#test set ROC curve
+plotROC(actuals=test$y_1,predictedScores=pred_c50)
+test<-test%>%
+  select(-one_of('y_1'))
+
+train$y_1<-ifelse(as.character(train$y)=="yes",1,0)
+
+#train set ROC curve
+plotROC(actuals=train$y_1,predictedScores=pred_c50_train)
+
+train<-train%>%
+  select(-one_of('y_1'))
+
+
+test$y_1<-ifelse(as.character(test$y)=="yes",1,0)
+x_c50<-cbind(test,pred_c50)
+
+x_c50<-x_c50[order(x_c50$pred_c50,decreasing = TRUE),]
+
+x_c50$cumden <- cumsum(x_c50$y_1)/sum(x_c50$y_1)
+
+x_c50$perpop <- (seq(nrow(x_c50))/nrow(x_c50))*100
+
+#Response Curve
+plot(x_c50$perpop,x_c50$cumden,type="l",xlab="% of Population",ylab="% of yes")
+abline(v = 20, col = 'coral2', lwd = 3, lty = 2)
+with(x_c50[x_c50$perpop==min(x_c50[x_c50$perpop>=20,"perpop"]),],text(x = perpop, y = cumden, labels = round(cumden,3), pos = 4))
+
+#optimal cutoff
+optimalCutoff(test$y_1,pred_c50,optimiseFor="Both")
+test<-test%>%
+  select(-one_of('y_1'))
+pred_c50_1 = as.factor(ifelse(pred_c50 >= 0.091, "yes", "no"))
+
+#confusion matrix with optimal cuoff
+caret::confusionMatrix(test$y,pred_c50_1,positive = "yes")
+
+pred_c50_1 = as.factor(ifelse(pred_c50 >= 0.5, "yes", "no"))
+
+#confusion matrix with 50% cutoff
+caret::confusionMatrix(test$y,pred_c50_1,positive = "yes")
+
+```
+
+#CART
+```{r}
+#training the model
+cart_model<-rpart(y ~ ., train,method = 'class')
+
+#plotting the tree
+fancyRpartPlot(cart_model)
+
+#preicting for test set
+pred_cart <- predict(cart_model,newdata = test,type='prob')[,2]
+predictions_cart<-prediction(pred_cart,test$y)
+roc_perf_cart <- performance(predictions_cart, "tpr", "fpr")
+
+#predicting for train set
+pred_cart_train <- predict(cart_model,newdata = train,type='prob')[,2]
+predictions_cart_train<-prediction(pred_cart_train,train$y)
+roc_perf_cart_train <- performance(predictions_cart_train, "tpr", "fpr")
+
+
+test$y_1<-ifelse(as.character(test$y)=="yes",1,0)
+
+#ROC curve for test set
+plotROC(actuals=test$y_1,predictedScores=pred_cart)
+test<-test%>%
+  select(-one_of('y_1'))
+
+train$y_1<-ifelse(as.character(train$y)=="yes",1,0)
+
+#ROC curve for train set
+plotROC(actuals=train$y_1,predictedScores=pred_cart_train)
+train<-train%>%
+  select(-one_of('y_1'))
+
+
+test$y_1<-ifelse(as.character(test$y)=="yes",1,0)
+x_cart<-cbind(test,pred_cart)
+
+x_cart<-x_cart[order(x_cart$pred_cart,decreasing = TRUE),]
+
+
+x_cart$cumden <- cumsum(x_cart$y_1)/sum(x_cart$y_1)
+
+x_cart$perpop <- (seq(nrow(x_cart))/nrow(x_cart))*100
+
+#Response curve
+plot(x_cart$perpop,x_cart$cumden,type="l",xlab="% of Population",ylab="% of yes")
+abline(v = 20, col = 'coral2', lwd = 3, lty = 2)
+with(x_cart[x_cart$perpop==min(x_cart[x_cart$perpop>=20,"perpop"]),],text(x = perpop, y = cumden, labels = round(cumden,3), pos = 4))
+
+#Optimal cutoff
+optimalCutoff(test$y_1,pred_cart,optimiseFor="Both")
+test<-test%>%
+  select(-one_of('y_1'))
+pred_cart_1 = as.factor(ifelse(pred_cart >= 0.35, "yes", "no"))
+
+#COnfusion matrix using optimal cutoff
+caret::confusionMatrix(test$y,pred_cart_1,positive = "yes")
+
+pred_cart_1 = as.factor(ifelse(pred_cart >= 0.5, "yes", "no"))
+#Optimal cutoff using 50% cutoff
+caret::confusionMatrix(test$y,pred_cart_1,positive = "yes")
+
+```
+
+
+#Random forest
+```{r}
+library(mlbench)
+
+set.seed(42)
+cv_folds <- createFolds(train$y, k = 5, returnTrain = TRUE)
+
+tc <- trainControl(method = 'cv', 
+               number = 5,
+               search = 'grid',
+               savePredictions = "final",
+               index = cv_folds,
+               classProbs = TRUE,summaryFunction = twoClassSummary)
+
+
+
+#building random forest model
+set.seed(42)
+rf_fit<- train(y~.,data=train, method='rf',importance=TRUE,
+                       metric = "ROC",
+                       trControl = tc,ntree=500,nodesize=25,tuneGrid=expand.grid(.mtry =8))
+
+
+rf_fit
+
+
+rf_fit_varimp<-varImp(rf_fit)
+
+#variable importance plot
+plot(rf_fit_varimp)
+
+#predicting for test set
+pred_rf <- predict(rf_fit,newdata = test,type='prob')[,2]
+predictions_rf<-prediction(pred_rf,test$y)
+roc_perf_rf <- performance(predictions_rf, "tpr", "fpr")
+
+#predicting for train set
+pred_rf_train <- predict(rf_fit,newdata = train,type='prob')[,2]
+predictions_rf_train<-prediction(pred_rf_train,train$y)
+roc_perf_rf_train <- performance(predictions_rf_train, "tpr", "fpr")
+
+test$y_1<-ifelse(as.character(test$y)=="yes",1,0)
+
+#test set ROC
+plotROC(actuals=test$y_1,predictedScores=pred_rf)
+test<-test%>%
+  dplyr::select(-one_of('y_1'))
+
+train$y_1<-ifelse(as.character(train$y)=="yes",1,0)
+
+#trainset ROC
+plotROC(actuals=train$y_1,predictedScores=pred_rf_train)
+train<-train%>%
+  dplyr::select(-one_of('y_1'))
+
+
+test$y_1<-ifelse(as.character(test$y)=="yes",1,0)
+x_rf<-cbind(test,pred_rf)
+
+x_rf<-x_rf[order(x_rf$pred_rf,decreasing = TRUE),]
+
+
+x_rf$cumden <- cumsum(x_rf$y_1)/sum(x_rf$y_1)
+
+x_rf$perpop <- (seq(nrow(x_rf))/nrow(x_rf))*100
+
+y_rf<-x_rf[x_rf$perpop==min(x_rf[x_rf$perpop>=20,"perpop"]),c("perpop","cumden")]
+
+#Respone curve
+plot(x_rf$perpop,x_rf$cumden,type="l",xlab="% of Population",ylab="% of yes")
+abline(v = 20, col = 'coral2', lwd = 3, lty = 2)
+with(x_rf[x_rf$perpop==min(x_rf[x_rf$perpop>=20,"perpop"]),],text(x = perpop, y = cumden, labels = round(cumden,3), pos = 4))
+
+
+#Optimal cutoff
+optimalCutoff(test$y_1,pred_rf,optimiseFor="Both")
+test<-test%>%
+  dplyr::select(-one_of('y_1'))
+pred_rf_1 = as.factor(ifelse(pred_rf >= 0.06, "yes", "no"))
+
+#Confusion matrix with optimal cutoff
+caret::confusionMatrix(test$y,pred_rf_1,positive = "yes")
+
+pred_rf_1 = as.factor(ifelse(pred_rf >= 0.5, "yes", "no"))
+
+#Confusion matrix with 50% cutoff
+caret::confusionMatrix(test$y,pred_rf_1,positive = "yes")
+
+```
+
+#Plotting all AUC curves together: test
+```{r}
+plot(roc_perf_c50,lwd=2, main = "Y ROC: All models", col = "blue")
+
+plot(roc_perf_cart, add = TRUE, col = "red")
+plot(roc_perf_rf, add = TRUE, col = "black")
+
+legend( "bottomright", c("C50: AUC=74.5% ", "CART: AUC=71%", "Random Forest: AUC=77.6%"), 
+text.col=c("blue", "red", "black") )
+
+```
+
+#Plotting all AUC curves : train
+```{r}
+plot(roc_perf_c50_train,lwd=2, main = "Y ROC: All models: training set", col = "blue")
+
+plot(roc_perf_cart_train, add = TRUE, col = "red")
+plot(roc_perf_rf_train, add = TRUE, col = "black")
+
+legend( "bottomright", c("C50: AUC=76.4% ", "CART: AUC=70%", "Random Forest: AUC=87%"), 
+text.col=c("blue", "red", "black") )
+
+```
+
+
+##explaination with lime
+```{r}
+library("lime")
+
+train_lime<-train%>%
+  dplyr::select(-one_of('y'))
+
+pred_rf_1 = as.factor(ifelse(pred_rf >= 0.06, "yes", "no"))
+test_lime<-cbind(test,pred_rf_1,pred_rf)
+
+#five instances where response was yes and correctly predcted
+test_lime_correct_pred<-test_lime%>%
+  filter(pred_rf>=0.5)%>%
+  filter(y==pred_rf_1)%>%
+  filter(as.character(y)=='yes')%>%
+  head(5)%>%
+  dplyr::select(-one_of(c('y','pred_rf_1','pred_rf')))
+
+
+#training lime model
+rf_explainer_lime <- lime(train_lime, rf_fit, n_bins = 5)
+
+
+#explaining the output cases
+
+start.time <- Sys.time()
+
+explainer_pred<-explain(test_lime_correct_pred[1,], explainer = rf_explainer_lime,
+  n_permutations = 5000,
+  dist_fun = "manhattan",
+  kernel_width = 2,
+  n_features = 20,
+  feature_select = "highest_weights",
+  label = 'yes'
+  )
+
+end.time <- Sys.time()
+
+time.taken_1 <- end.time - start.time
+
+plot_features(explainer_pred, ncol = 2)
+
+
+start.time <- Sys.time()
+
+explainer_pred<-explain(test_lime_correct_pred[2,], explainer = rf_explainer_lime,
+  n_permutations = 5000,
+  dist_fun = "manhattan",
+  kernel_width = 2,
+  n_features = 20,
+  feature_select = "highest_weights",
+  label = 'yes'
+  )
+
+end.time <- Sys.time()
+
+time.taken_2 <- end.time - start.time
+
+plot_features(explainer_pred, ncol = 2)
+
+start.time <- Sys.time()
+
+explainer_pred<-explain(test_lime_correct_pred[3,], explainer = rf_explainer_lime,
+  n_permutations = 5000,
+  dist_fun = "manhattan",
+  kernel_width = 2,
+  n_features = 20,
+  feature_select = "highest_weights",
+  label = 'yes'
+  )
+
+end.time <- Sys.time()
+
+time.taken_3 <- end.time - start.time
+
+plot_features(explainer_pred, ncol = 2)
+
+start.time <- Sys.time()
+
+explainer_pred<-explain(test_lime_correct_pred[4,], explainer = rf_explainer_lime,
+  n_permutations = 5000,
+  dist_fun = "manhattan",
+  kernel_width = 2,
+  n_features = 20,
+  feature_select = "highest_weights",
+  label = 'yes'
+  )
+
+end.time <- Sys.time()
+
+time.taken_4 <- end.time - start.time
+
+plot_features(explainer_pred, ncol = 2)
+
+start.time <- Sys.time()
+
+explainer_pred<-explain(test_lime_correct_pred[5,], explainer = rf_explainer_lime,
+  n_permutations = 5000,
+  dist_fun = "manhattan",
+  kernel_width = 2,
+  n_features = 20,
+  feature_select = "highest_weights",
+  label = 'yes'
+  )
+
+end.time <- Sys.time()
+
+time.taken_5 <- end.time - start.time
+
+plot_features(explainer_pred, ncol = 2)
+
+
+avg_time_taken_lime<-(time.taken_1+time.taken_2+time.taken_3+time.taken_4+time.taken_5)/5
+
+#average time taken to run one lime instance
+avg_time_taken_lime
+
+
+```
+
+
+```{r}
+
+library("iml")
+
+#selecting 5 instances which were corrected predicted
+test_lime_correct_pred<-test_lime%>%
+  filter(pred_rf>=0.5)%>%
+  filter(y==pred_rf_1)%>%
+  filter(as.character(y)=='yes')%>%
+  head(5)%>%
+  dplyr::select(-one_of(c('y','pred_rf_1','pred_rf')))
+
+
+
+#training shapely values model
+predictor <- Predictor$new(rf_fit, data = train, class="yes",type = "prob")
+
+
+#plotting individual instances
+start.time <- Sys.time()
+
+shapley_values <- Shapley$new(predictor, x.interest = test_lime_correct_pred[1, ],sample.size = 5000)
+
+end.time <- Sys.time()
+
+time.taken_1 <- end.time - start.time
+
+shapley_values$plot()
+
+start.time <- Sys.time()
+
+shapley_values <- Shapley$new(predictor, x.interest = test_lime_correct_pred[2, ],sample.size = 5000)
+
+end.time <- Sys.time()
+
+time.taken_2 <- end.time - start.time
+
+shapley_values$plot()
+
+start.time <- Sys.time()
+
+shapley_values <- Shapley$new(predictor, x.interest = test_lime_correct_pred[3, ],sample.size = 5000)
+
+end.time <- Sys.time()
+
+time.taken_3 <- end.time - start.time
+
+shapley_values$plot()
+
+start.time <- Sys.time()
+
+shapley_values <- Shapley$new(predictor, x.interest = test_lime_correct_pred[4, ],sample.size = 5000)
+
+end.time <- Sys.time()
+
+time.taken_4 <- end.time - start.time
+
+shapley_values$plot()
+
+start.time <- Sys.time()
+
+shapley_values <- Shapley$new(predictor, x.interest = test_lime_correct_pred[5, ],sample.size = 5000)
+
+end.time <- Sys.time()
+
+time.taken_5 <- end.time - start.time
+
+shapley_values$plot()
+
+
+avg_time_taken_shapley_values<-(time.taken_1+time.taken_2+time.taken_3+time.taken_4+time.taken_5)/5
+
+#average time taken to run one instance
+avg_time_taken_shapley_values
+
+
+
+```
+
+```{r}
+
+library("DALEX")
+library("reticulate")
+library("shapper")
+
+test_lime_correct_pred_1<-test_lime%>%
+  filter(pred_rf>=0.5)%>%
+  filter(y==pred_rf_1)%>%
+  filter(as.character(y)=='yes')%>%
+  head(5)%>%
+  select(-one_of(c('y','pred_rf_1','pred_rf')))
+
+
+
+train_shap<-train%>%
+  dplyr::select(-one_of('y'))
+
+#predicting using shapper function
+p_function <- function(model, data) predict(model, newdata = data, type = "prob")
+
+
+#plotting individual instances
+start.time <- Sys.time()
+
+ive_rf <- individual_variable_effect(rf_fit, data = train_shap, predict_function = p_function,
+            new_observation = test_lime_correct_pred_1[1, ], nsamples = 100)
+
+end.time <- Sys.time()
+
+time.taken_1 <- end.time - start.time
+
+# plot(ive_rf)
+
+
+ive_rf_filtered <- dplyr::filter(ive_rf, `_ylevel_` =="yes")
+shapper:::plot.individual_variable_effect(ive_rf_filtered)
+
+start.time <- Sys.time()
+
+ive_rf <- individual_variable_effect(rf_fit, data = train_shap, predict_function = p_function,
+            new_observation = test_lime_correct_pred_1[2, ], nsamples = 100)
+
+end.time <- Sys.time()
+
+time.taken_2 <- end.time - start.time
+
+# plot(ive_rf)
+
+
+ive_rf_filtered <- dplyr::filter(ive_rf, `_ylevel_` =="yes")
+shapper:::plot.individual_variable_effect(ive_rf_filtered)
+
+start.time <- Sys.time()
+
+ive_rf <- individual_variable_effect(rf_fit, data = train_shap, predict_function = p_function,
+            new_observation = test_lime_correct_pred_1[3, ], nsamples = 100)
+
+
+end.time <- Sys.time()
+
+time.taken_3 <- end.time - start.time
+# plot(ive_rf)
+
+
+ive_rf_filtered <- dplyr::filter(ive_rf, `_ylevel_` =="yes")
+shapper:::plot.individual_variable_effect(ive_rf_filtered)
+
+
+start.time <- Sys.time()
+
+ive_rf <- individual_variable_effect(rf_fit, data = train_shap, predict_function = p_function,
+            new_observation = test_lime_correct_pred_1[4, ], nsamples = 100)
+
+
+end.time <- Sys.time()
+
+time.taken_4 <- end.time - start.time
+
+
+ive_rf_filtered <- dplyr::filter(ive_rf, `_ylevel_` =="yes")
+shapper:::plot.individual_variable_effect(ive_rf_filtered)
+
+
+start.time <- Sys.time()
+
+ive_rf <- individual_variable_effect(rf_fit, data = train_shap, predict_function = p_function,
+            new_observation = test_lime_correct_pred_1[5, ], nsamples = 100)
+
+
+end.time <- Sys.time()
+
+time.taken_5 <- end.time - start.time
+
+
+ive_rf_filtered <- dplyr::filter(ive_rf, `_ylevel_` =="yes")
+shapper:::plot.individual_variable_effect(ive_rf_filtered)
+
+
+
+avg_time_taken_shap<-(time.taken_1+time.taken_2+time.taken_3+time.taken_4+time.taken_5)/5
+
+avg_time_taken_shap
+
+
+```
