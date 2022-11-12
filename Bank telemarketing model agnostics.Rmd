@@ -1,35 +1,33 @@
 ---
-title: "Bank Marketing"
-author: "Mukul Gupta"
-date: "September 2, 2020"
+title: "Tele bank marketing"
+author: "Mukul"
+date: "11/14/2021"
 output:
-  html_document: default
   word_document: default
+  pdf_document: default
 ---
 
-#importing all the libraries
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+packages = c("tidyverse", "dplyr",
+             "ggplot2", "caret","corrplot","C50","ROCR","plotROC","PRROC","InformationValue","rpart",
+             "rattle","lime","cutpointr")
 
-
-packages<- c('dplyr','ggplot2','readxl','tm','SnowballC','topicmodels','RODBC','party','rpart','rpart.plot','rattle','partykit',
-             'caret','ranger','e1071','ROCR','randomForest','data.table','ROSE','xgboost' ,'doParallel','parallel'
-             ,'glmnet','pdftools','readtext','textreadr','tidytext','arules','InformationValue','tidyr','fastcluster','Rtsne','cluster','clustMixType',
-            'dplyr','ggplot2','readxl','tm','SnowballC','topicmodels','RODBC','party','rpart','rpart.plot','rattle','partykit',
-             'caret','ranger','e1071','ROCR','randomForest','data.table','caret','ROSE','xgboost','parallel','doParallel','glmnet','pdftools','readtext','textreadr','tidytext','arules','InformationValue','stats','ggfortify','corrplot','factoextra','fpc','dbscan','cluster','factoextra','purrr','tidyr','arulesViz','Rtsne','cowplot','ada','Metrics','readr','C50')
-
-for (i in packages) { #Installs packages if not yet installed
-  if (!require(i, character.only = TRUE)) install.packages(i)
-  library(i,character.only=TRUE,quietly=TRUE,verbose=FALSE)
-}
+package.check <- lapply(
+  packages,
+  FUN = function(x) {
+    if (!require(x, character.only = TRUE)) {
+      install.packages(x, dependencies = TRUE)
+      library(x, character.only = TRUE)
+    }
+  }
+)
 
 ```
 
-## Uploading the data
 
+##Uploading the dataset
 ```{r}
-bank_data<-read.csv("C:/Users/mukul_gupta/Documents/personal/paper/bank-additional/bank-additional/bank-additional-full.csv",
-                    sep=';',stringsAsFactors = FALSE)
+bank_data<-read.csv("~/personal/paper/bank-additional/bank-additional/bank-additional-full.csv",sep=';',stringsAsFactors = FALSE)
 
 dim(bank_data)
 
@@ -41,76 +39,78 @@ summary(bank_data)
 
 ## Cleaning the data
 
-Data contains many numeric and character variables. This code snippet will cOnvert the character variables to factors and will check for outliers & missing data. There are no missing values in the data. A couple of variables ;for example: campaign and previous; have outliers but capping them or removing them will be a loss of important information so we are keeping them as it is. 
+Data contains many numeric and character variables. This code snippet will convert the character variables to factors and will check for outliers & missing data. There are no missing values in the data. A couple of variables ;for example: campaign and previous; have outliers but capping them or removing them will be a loss of important information so we are keeping them as it is
 
 ```{r}
-#Converting character variables to factor
-#adding anything below thousand in other bucket
 
+#Converting character variables to factor
 table(bank_data$job)
-# bank_data<-bank_data%>%
-  # mutate(job=ifelse(job=='student'|job=='unknown','Other',job))
+
 bank_data$job<-as.factor(bank_data$job)
 
-table(bank_data$marital)
+bank_data$job<-as.factor(bank_data$job)
+
 bank_data$marital<-as.factor(bank_data$marital)
 
 table(bank_data$education)
-# bank_data<-bank_data%>%
-  # mutate(education=ifelse(education=='illiterate'|education=='unknown','Other',education))
+
 bank_data$education<-as.factor(bank_data$education)
 
-#remove default variable
 table(bank_data$default)
-# bank_data<-bank_data%>%
-  # mutate(default=ifelse(default=='yes'|default=='unknown','Other',default))
+
 bank_data$default<-as.factor(bank_data$default)
 
 table(bank_data$housing)
+
 bank_data$housing<-as.factor(bank_data$housing)
 
 table(bank_data$loan)
+
 bank_data$loan<-as.factor(bank_data$loan)
 
 table(bank_data$contact)
+
 bank_data$contact<-as.factor(bank_data$contact)
 
 table(bank_data$month)
-# bank_data<-bank_data%>%
-  # mutate(month=ifelse(month=='dec'|month=='mar'|month=='oct'|month=='sep','Other',month))
+
 bank_data$month<-as.factor(bank_data$month)
 
 table(bank_data$day_of_week)
+
 bank_data$day_of_week<-as.factor(bank_data$day_of_week)
 
 table(bank_data$poutcome)
+
 bank_data$poutcome<-as.factor(bank_data$poutcome)
 
 table(bank_data$y)
+
 bank_data$y<-as.factor(bank_data$y)
 
 
-summary(bank_data$campaign)
+#checking for outliers
+
 boxplot(bank_data$campaign)
 
+boxplot.stats(bank_data$campaign,coef = 3)
 
-summary(bank_data$previous)
 boxplot(bank_data$previous)
 
+boxplot.stats(bank_data$previous,coef = 3)
 
-summary(bank_data$pdays)
-boxplot(bank_data$pdays)
 
-##correlation matrix
+summary(bank_data)
+
+
 bank_data_continious_data<- select_if(bank_data, is.numeric)
 
 n<-cor(bank_data_continious_data)
-corrplot::corrplot.mixed(n)
+corrplot.mixed(n)
 
 ```
 
-## Exploratory analysis
-
+##Exploratory analysis
 
 ```{r}
 #job
@@ -140,63 +140,100 @@ ggplot(bank_data,aes(month))+geom_bar(aes(fill=y)) + theme(axis.text.x = element
 #day_of_week
 ggplot(bank_data,aes(day_of_week))+geom_bar(aes(fill=y)) + theme(axis.text.x = element_text(angle = 60, hjust = 1))
 
-
 #poutcome
 ggplot(bank_data,aes(poutcome))+geom_bar(aes(fill=y)) + theme(axis.text.x = element_text(angle = 60, hjust = 1))
 
 ```
-
 ##Model building
-###splitting the data into 70:30
-###Removing duration variable as adding that will amount to data leakage
+
+###splitting the data into train, validation and test
 
 ```{r}
-bank_data_1<-bank_data%>%
-  select(-one_of('duration'))
+bank_data_1<-bank_data
 
 set.seed(42)
 
-intrain <- createDataPartition(y = bank_data_1$y, p = 0.7, list = FALSE)
+intrain <- createDataPartition(y = bank_data_1$y, p = 0.8, list = FALSE)
 train <- bank_data_1[intrain,]
 test <- bank_data_1[-intrain,]
 
-table(train$y)
-table(train$y)
+validation <- createDataPartition(y = train$y, p = 0.7, list = FALSE)
+
+train_1 <- train[validation,]
+validation_1<-train[-validation,]
 
 ```
 
+##C5
 
-#C5.0
 ```{r}
-##training the model
-c50_model<-C5.0(y~.,train)
+set.seed(42)
+ctrl <- trainControl(method="repeatedcv",number = 5,repeats = 5,summaryFunction = twoClassSummary, 
+                           classProbs = TRUE)
 
-#predicting on training dataset
-pred_c50_train <- predict(c50_model,newdata = train,type='prob')[,2]
+grid_c50 <- expand.grid(.model="tree",.trials=c(20,30,40,50),.winnow="FALSE")
+
+library(parallel)
+library(doParallel)
+cluster <- makeCluster(detectCores() - 1) # convention to leave 1 core for OS
+registerDoParallel(cluster)
+
+c50_model<-caret::train(y~.,data = train_1,method="C5.0",metric="ROC",trControl=ctrl,tuneGrid=grid_c50)
+
+stopCluster(cluster)
+registerDoSEQ()
+c50_model
+
+pred_c50_validation <- predict(c50_model,newdata = validation_1,type='prob')[,2]
+predictions_c50_validation<-prediction(pred_c50_validation,validation_1$y)
+roc_perf_c50_validation <- ROCR::performance(predictions_c50_validation, "tpr", "fpr")
+
+plot(roc_perf_c50_validation,colorize=TRUE, lwd=2, main = "performer ROC: C5.0", col = "blue")
+lines(x=c(0, 1), y=c(0, 1), col="red", lwd=1, lty=3);
+lines(x=c(1, 0), y=c(0, 1), col="green", lwd=1, lty=4)
+
+validation_1$y_1<-ifelse(as.character(validation_1$y)=="yes",1,0)
+plotROC(actuals=validation_1$y_1,predictedScores=pred_c50_validation)
+
+validation_1<-validation_1%>%
+  select(-one_of('y_1'))
+
+optimalCutoff <- cutpointr(pred_c50_validation, validation_1$y, 
+                method = maximize_metric, metric = F1_score,pos_class = "yes",
+                     neg_class = "no")
+
+optimalCutoff$optimal_cutpoint
+
+pred_c50_1_validation = as.factor(ifelse(pred_c50_validation >= optimalCutoff$optimal_cutpoint, "yes", "no"))
+caret::confusionMatrix(validation_1$y,pred_c50_1_validation,positive="no")
+
+set.seed(42)
+c50_model_1<-C5.0(y~.,data = train,.trials=50)
+
+
+pred_c50_train <- predict(c50_model_1,newdata = train,type='prob')[,2]
 predictions_c50_train<-prediction(pred_c50_train,train$y)
-roc_perf_c50_train <- performance(predictions_c50_train, "tpr", "fpr")
+roc_perf_c50_train <- ROCR::performance(predictions_c50_train, "tpr", "fpr")
 
-#predicting on test dataset
-pred_c50 <- predict(c50_model,newdata = test,type='prob')[,2]
+pred_c50 <- predict(c50_model_1,newdata = test,type='prob')[,2]
 predictions_c50<-prediction(pred_c50,test$y)
-roc_perf_c50 <- performance(predictions_c50, "tpr", "fpr")
+roc_perf_c50 <- ROCR::performance(predictions_c50, "tpr", "fpr")
 
+plot(roc_perf_c50,colorize=TRUE, lwd=2, main = "performer ROC: C5.0", col = "blue")
+lines(x=c(0, 1), y=c(0, 1), col="red", lwd=1, lty=3);
+lines(x=c(1, 0), y=c(0, 1), col="green", lwd=1, lty=4)
 
 test$y_1<-ifelse(as.character(test$y)=="yes",1,0)
-
-#test set ROC curve
 plotROC(actuals=test$y_1,predictedScores=pred_c50)
+
 test<-test%>%
   select(-one_of('y_1'))
 
 train$y_1<-ifelse(as.character(train$y)=="yes",1,0)
-
-#train set ROC curve
 plotROC(actuals=train$y_1,predictedScores=pred_c50_train)
 
 train<-train%>%
   select(-one_of('y_1'))
-
 
 test$y_1<-ifelse(as.character(test$y)=="yes",1,0)
 x_c50<-cbind(test,pred_c50)
@@ -207,57 +244,111 @@ x_c50$cumden <- cumsum(x_c50$y_1)/sum(x_c50$y_1)
 
 x_c50$perpop <- (seq(nrow(x_c50))/nrow(x_c50))*100
 
-#Response Curve
 plot(x_c50$perpop,x_c50$cumden,type="l",xlab="% of Population",ylab="% of yes")
 abline(v = 20, col = 'coral2', lwd = 3, lty = 2)
 with(x_c50[x_c50$perpop==min(x_c50[x_c50$perpop>=20,"perpop"]),],text(x = perpop, y = cumden, labels = round(cumden,3), pos = 4))
 
-#optimal cutoff
-optimalCutoff(test$y_1,pred_c50,optimiseFor="Both")
+
+optimalCutoff <- cutpointr(pred_c50, test$y, 
+                method = maximize_metric, metric = F1_score,pos_class = "yes",
+                     neg_class = "no")
+
+optimalCutoff$optimal_cutpoint
+
 test<-test%>%
   select(-one_of('y_1'))
-pred_c50_1 = as.factor(ifelse(pred_c50 >= 0.091, "yes", "no"))
+pred_c50_1 = as.factor(ifelse(pred_c50 >= optimalCutoff$optimal_cutpoint, "yes", "no"))
+caret::confusionMatrix(test$y,pred_c50_1,positive="no")
 
-#confusion matrix with optimal cuoff
-caret::confusionMatrix(test$y,pred_c50_1,positive = "yes")
 
 pred_c50_1 = as.factor(ifelse(pred_c50 >= 0.5, "yes", "no"))
+caret::confusionMatrix(test$y,pred_c50_1)
 
-#confusion matrix with 50% cutoff
-caret::confusionMatrix(test$y,pred_c50_1,positive = "yes")
 
 ```
 
-#CART
-```{r}
-#training the model
-cart_model<-rpart(y ~ ., train,method = 'class')
 
-#plotting the tree
+##CART
+
+```{r}
+
+train.control <- trainControl(
+                           method = "repeatedcv",
+                           number = 5, 
+                           repeats = 5,
+                           summaryFunction = twoClassSummary, 
+                           classProbs = TRUE
+                           )
+
+set.seed(42)
+cluster <- makeCluster(detectCores() - 1) # convention to leave 1 core for OS
+registerDoParallel(cluster)
+cart_model_1 <- caret::train(y~., data=train_1, 
+                 method = "rpart2", 
+                 tuneLength = 6,
+                 trControl = train.control,
+                 metric = "ROC"
+               )
+stopCluster(cluster)
+registerDoSEQ()
+
+cart_model_1
+
+pred_cart_validation <- predict(cart_model_1,newdata = validation_1,type='prob')[,2]
+predictions_cart_validation<-prediction(pred_cart_validation,validation_1$y)
+roc_perf_cart_validation <- ROCR::performance(predictions_cart_validation, "tpr", "fpr")
+
+plot(roc_perf_cart_validation,colorize=TRUE, lwd=2, main = "performer ROC: cart", col = "blue")
+lines(x=c(0, 1), y=c(0, 1), col="red", lwd=1, lty=3);
+lines(x=c(1, 0), y=c(0, 1), col="green", lwd=1, lty=4)
+
+validation_1$y_1<-ifelse(as.character(validation_1$y)=="yes",1,0)
+plotROC(actuals=validation_1$y_1,predictedScores=pred_cart_validation)
+
+validation_1<-validation_1%>%
+  select(-one_of('y_1'))
+
+optimalCutoff <- cutpointr(pred_cart_validation, validation_1$y, 
+                method = maximize_metric, metric = F1_score,pos_class = "yes",
+                     neg_class = "no")
+
+optimalCutoff$optimal_cutpoint
+
+pred_cart_1_validation = as.factor(ifelse(pred_cart_validation >= optimalCutoff$optimal_cutpoint, "yes", "no"))
+caret::confusionMatrix(validation_1$y,pred_cart_1_validation,positive="no")
+
+
+
+set.seed(42)
+
+cart_model<-rpart(y ~ ., train,method = 'class',control=rpart.control(maxdepth=7))
+
+cart_model
+
 fancyRpartPlot(cart_model)
 
-#preicting for test set
 pred_cart <- predict(cart_model,newdata = test,type='prob')[,2]
 predictions_cart<-prediction(pred_cart,test$y)
-roc_perf_cart <- performance(predictions_cart, "tpr", "fpr")
+roc_perf_cart <- ROCR::performance(predictions_cart, "tpr", "fpr")
 
-#predicting for train set
 pred_cart_train <- predict(cart_model,newdata = train,type='prob')[,2]
 predictions_cart_train<-prediction(pred_cart_train,train$y)
-roc_perf_cart_train <- performance(predictions_cart_train, "tpr", "fpr")
+roc_perf_cart_train <- ROCR::performance(predictions_cart_train, "tpr", "fpr")
 
+
+plot(roc_perf_cart,colorize=TRUE, lwd=2, main = "performer ROC: CART", col = "blue")
+lines(x=c(0, 1), y=c(0, 1), col="red", lwd=1, lty=3);
+lines(x=c(1, 0), y=c(0, 1), col="green", lwd=1, lty=4)
 
 test$y_1<-ifelse(as.character(test$y)=="yes",1,0)
-
-#ROC curve for test set
 plotROC(actuals=test$y_1,predictedScores=pred_cart)
+
 test<-test%>%
   select(-one_of('y_1'))
 
 train$y_1<-ifelse(as.character(train$y)=="yes",1,0)
-
-#ROC curve for train set
 plotROC(actuals=train$y_1,predictedScores=pred_cart_train)
+
 train<-train%>%
   select(-one_of('y_1'))
 
@@ -272,81 +363,112 @@ x_cart$cumden <- cumsum(x_cart$y_1)/sum(x_cart$y_1)
 
 x_cart$perpop <- (seq(nrow(x_cart))/nrow(x_cart))*100
 
-#Response curve
 plot(x_cart$perpop,x_cart$cumden,type="l",xlab="% of Population",ylab="% of yes")
 abline(v = 20, col = 'coral2', lwd = 3, lty = 2)
 with(x_cart[x_cart$perpop==min(x_cart[x_cart$perpop>=20,"perpop"]),],text(x = perpop, y = cumden, labels = round(cumden,3), pos = 4))
 
-#Optimal cutoff
-optimalCutoff(test$y_1,pred_cart,optimiseFor="Both")
+optimalCutoff <- cutpointr(x=pred_cart, class=test$y, 
+                method = maximize_metric, metric = F1_score,pos_class = "yes",
+                     neg_class = "no")
+
+optimalCutoff$optimal_cutpoint
+
 test<-test%>%
   select(-one_of('y_1'))
-pred_cart_1 = as.factor(ifelse(pred_cart >= 0.35, "yes", "no"))
-
-#COnfusion matrix using optimal cutoff
-caret::confusionMatrix(test$y,pred_cart_1,positive = "yes")
+pred_cart_1 = as.factor(ifelse(pred_cart >= optimalCutoff$optimal_cutpoint, "yes", "no"))
+caret::confusionMatrix(test$y,pred_cart_1)
 
 pred_cart_1 = as.factor(ifelse(pred_cart >= 0.5, "yes", "no"))
-#Optimal cutoff using 50% cutoff
-caret::confusionMatrix(test$y,pred_cart_1,positive = "yes")
+caret::confusionMatrix(test$y,pred_cart_1)
+
 
 ```
 
 
-#Random forest
+#Random Forest
 ```{r}
-library(mlbench)
+ctrl <- trainControl(method="repeatedcv",number = 5,repeats = 5,
+               classProbs = TRUE,summaryFunction = twoClassSummary,allowParallel = TRUE)
+
+cluster <- makeCluster(detectCores() - 1) # convention to leave 1 core for OS
+registerDoParallel(cluster)
 
 set.seed(42)
-cv_folds <- createFolds(train$y, k = 5, returnTrain = TRUE)
-
-tc <- trainControl(method = 'cv', 
-               number = 5,
-               search = 'grid',
-               savePredictions = "final",
-               index = cv_folds,
-               classProbs = TRUE,summaryFunction = twoClassSummary)
-
-
-
-#building random forest model
-set.seed(42)
-rf_fit<- train(y~.,data=train, method='rf',importance=TRUE,
+rf_fit<- caret::train(y~.,data=train_1, method='rf',importance=TRUE,
                        metric = "ROC",
-                       trControl = tc,ntree=500,nodesize=25,tuneGrid=expand.grid(.mtry =8))
+                       trControl =ctrl,ntree=500,tuneGrid=expand.grid(.mtry =5:10),nodesize=25)
+stopCluster(cluster)
+registerDoSEQ()
 
-
+# # saveRDS(rf_fit, "rf_fit_paper.rds")
+# rf_fit <- readRDS("rf_fit_paper.rds")
 rf_fit
 
+pred_rf_validation <- predict(rf_fit,newdata = validation_1,type='prob')[,2]
+predictions_rf_validation<-prediction(pred_rf_validation,validation_1$y)
+roc_perf_rf_validation <- ROCR::performance(predictions_rf_validation, "tpr", "fpr")
 
-rf_fit_varimp<-varImp(rf_fit)
+plot(roc_perf_rf_validation,colorize=TRUE, lwd=2, main = "performer ROC: RF", col = "blue")
+lines(x=c(0, 1), y=c(0, 1), col="red", lwd=1, lty=3);
+lines(x=c(1, 0), y=c(0, 1), col="green", lwd=1, lty=4)
 
-#variable importance plot
-plot(rf_fit_varimp)
+validation_1$y_1<-ifelse(as.character(validation_1$y)=="yes",1,0)
+plotROC(actuals=validation_1$y_1,predictedScores=pred_rf_validation)
 
-#predicting for test set
-pred_rf <- predict(rf_fit,newdata = test,type='prob')[,2]
+validation_1<-validation_1%>%
+  select(-one_of('y_1'))
+
+optimalCutoff <- cutpointr(pred_rf_validation, validation_1$y, 
+                method = maximize_metric, metric = F1_score,pos_class = "yes",
+                     neg_class = "no")
+
+optimalCutoff$optimal_cutpoint
+
+pred_rf_1_validation = as.factor(ifelse(pred_rf_validation >= optimalCutoff$optimal_cutpoint, "yes", "no"))
+caret::confusionMatrix(validation_1$y,pred_rf_1_validation,positive="no")
+
+ctrl <- trainControl(method="repeatedcv",number = 5,repeats = 5,
+               classProbs = TRUE,summaryFunction = twoClassSummary,allowParallel = TRUE)
+
+cluster <- makeCluster(detectCores() - 1) # convention to leave 1 core for OS
+registerDoParallel(cluster)
+
+set.seed(42)
+rf_fit_1<- caret::train(y~.,data=train, method='rf',importance=TRUE,
+                       metric = "ROC",
+                       trControl =ctrl,ntree=500,tuneGrid=expand.grid(.mtry =10),nodesize=25)
+stopCluster(cluster)
+registerDoSEQ()
+# saveRDS(rf_fit_1, "rf_fit_1_paper.rds")
+# rf_fit_1 <- readRDS("rf_fit_1_paper.rds")
+rf_fit_1
+
+pred_rf <- predict(rf_fit_1,newdata = test,type='prob')[,2]
 predictions_rf<-prediction(pred_rf,test$y)
-roc_perf_rf <- performance(predictions_rf, "tpr", "fpr")
+roc_perf_rf <- ROCR::performance(predictions_rf, "tpr", "fpr")
 
-#predicting for train set
-pred_rf_train <- predict(rf_fit,newdata = train,type='prob')[,2]
+x<-cbind(test,pred_rf)
+
+plot(roc_perf_rf,colorize=TRUE, lwd=2, main = "performer ROC: Random Forest", col = "blue")
+lines(x=c(0, 1), y=c(0, 1), col="red", lwd=1, lty=3);
+lines(x=c(1, 0), y=c(0, 1), col="green", lwd=1, lty=4)
+
+pred_rf_train <- predict(rf_fit_1,newdata = train,type='prob')[,2]
 predictions_rf_train<-prediction(pred_rf_train,train$y)
-roc_perf_rf_train <- performance(predictions_rf_train, "tpr", "fpr")
+roc_perf_rf_train <- ROCR::performance(predictions_rf_train, "tpr", "fpr")
 
 test$y_1<-ifelse(as.character(test$y)=="yes",1,0)
-
-#test set ROC
 plotROC(actuals=test$y_1,predictedScores=pred_rf)
+
 test<-test%>%
-  dplyr::select(-one_of('y_1'))
+  select(-one_of('y_1'))
 
 train$y_1<-ifelse(as.character(train$y)=="yes",1,0)
-
-#trainset ROC
 plotROC(actuals=train$y_1,predictedScores=pred_rf_train)
+
+
 train<-train%>%
-  dplyr::select(-one_of('y_1'))
+  select(-one_of('y_1'))
 
 
 test$y_1<-ifelse(as.character(test$y)=="yes",1,0)
@@ -361,80 +483,470 @@ x_rf$perpop <- (seq(nrow(x_rf))/nrow(x_rf))*100
 
 y_rf<-x_rf[x_rf$perpop==min(x_rf[x_rf$perpop>=20,"perpop"]),c("perpop","cumden")]
 
-#Respone curve
+
 plot(x_rf$perpop,x_rf$cumden,type="l",xlab="% of Population",ylab="% of yes")
 abline(v = 20, col = 'coral2', lwd = 3, lty = 2)
 with(x_rf[x_rf$perpop==min(x_rf[x_rf$perpop>=20,"perpop"]),],text(x = perpop, y = cumden, labels = round(cumden,3), pos = 4))
 
 
-#Optimal cutoff
-optimalCutoff(test$y_1,pred_rf,optimiseFor="Both")
-test<-test%>%
-  dplyr::select(-one_of('y_1'))
-pred_rf_1 = as.factor(ifelse(pred_rf >= 0.06, "yes", "no"))
+optimalCutoff <- cutpointr(x=pred_rf, class=test$y,
+                method = maximize_metric, metric = F1_score,pos_class = "yes",
+                     neg_class = "no")
 
-#Confusion matrix with optimal cutoff
-caret::confusionMatrix(test$y,pred_rf_1,positive = "yes")
+optimalCutoff$optimal_cutpoint
+
+test<-test%>%
+  select(-one_of('y_1'))
+pred_rf_1 = as.factor(ifelse(pred_rf >= optimalCutoff$optimal_cutpoint, "yes", "no"))
+caret::confusionMatrix(test$y,pred_rf_1)
 
 pred_rf_1 = as.factor(ifelse(pred_rf >= 0.5, "yes", "no"))
-
-#Confusion matrix with 50% cutoff
-caret::confusionMatrix(test$y,pred_rf_1,positive = "yes")
+caret::confusionMatrix(test$y,pred_rf_1)
 
 ```
 
-#Plotting all AUC curves together: test
+
+##Plotting all AUC curves together
 ```{r}
 plot(roc_perf_c50,lwd=2, main = "Y ROC: All models", col = "blue")
 
 plot(roc_perf_cart, add = TRUE, col = "red")
 plot(roc_perf_rf, add = TRUE, col = "black")
 
-legend( "bottomright", c("C50: AUC=74.5% ", "CART: AUC=71%", "Random Forest: AUC=77.6%"), 
+legend( "bottomright", c("C50: AUC=91.28% ", "CART: AUC=84.51%", "Random Forest: AUC=93.89%"),
 text.col=c("blue", "red", "black") )
+
 
 ```
 
-#Plotting all AUC curves : train
+
+##Plotting all AUC curves together
+
 ```{r}
 plot(roc_perf_c50_train,lwd=2, main = "Y ROC: All models: training set", col = "blue")
 
 plot(roc_perf_cart_train, add = TRUE, col = "red")
 plot(roc_perf_rf_train, add = TRUE, col = "black")
 
-legend( "bottomright", c("C50: AUC=76.4% ", "CART: AUC=70%", "Random Forest: AUC=87%"), 
+legend( "bottomright", c("C50: AUC=93.39% ", "CART: AUC=85.67%", "Random Forest: AUC=97.89%"),
 text.col=c("blue", "red", "black") )
+
+```
+##Model building with undersampling
+
+```{r}
+
+library(unbalanced)
+
+train_2<-train
+train_2$y<-as.factor(ifelse(as.character(train_2$y)=='no',0,1))
+
+set.seed(42)
+train_undersampled<-ubUnder(train_2[,-21], train_2[,21], perc = 20, method = "percPos", w = NULL)
+
+train_us_final<-train[-train_undersampled$id.rm,]
+
+validation_us_final <- createDataPartition(y = train_us_final$y, p = 0.7, list = FALSE)
+
+train_us_final_1 <- train_us_final[validation_us_final,]
+validation_us_final_1<-train_us_final[-validation_us_final,]
+
+
+```
+
+##C5 with undersampling
+
+```{r}
+set.seed(42)
+ctrl <- trainControl(method="repeatedcv",number = 5,repeats = 5,summaryFunction = twoClassSummary, 
+                           classProbs = TRUE)
+
+grid_c50 <- expand.grid(.model="tree",.trials=c(20,30,40,50),.winnow="FALSE")
+
+library(parallel)
+library(doParallel)
+cluster <- makeCluster(detectCores() - 1) # convention to leave 1 core for OS
+registerDoParallel(cluster)
+
+c50_model_us_tune<-caret::train(y~.,data = train_us_final_1,method="C5.0",metric="ROC",trControl=ctrl,tuneGrid=grid_c50)
+
+stopCluster(cluster)
+registerDoSEQ()
+c50_model_us_tune
+
+pred_c50_validation_us <- predict(c50_model_us_tune,newdata = validation_us_final_1,type='prob')[,2]
+predictions_c50_validation_us<-prediction(pred_c50_validation_us,validation_us_final_1$y)
+roc_perf_c50_validation_us <- ROCR::performance(predictions_c50_validation_us, "tpr", "fpr")
+
+plot(roc_perf_c50_validation_us,colorize=TRUE, lwd=2, main = "performer ROC: C5.0", col = "blue")
+lines(x=c(0, 1), y=c(0, 1), col="red", lwd=1, lty=3);
+lines(x=c(1, 0), y=c(0, 1), col="green", lwd=1, lty=4)
+
+validation_us_final_1$y_1<-ifelse(as.character(validation_us_final_1$y)=="yes",1,0)
+plotROC(actuals=validation_us_final_1$y_1,predictedScores=pred_c50_validation_us)
+
+validation_us_final_1<-validation_us_final_1%>%
+  select(-one_of('y_1'))
+
+optimalCutoff <- cutpointr(pred_c50_validation_us, validation_us_final_1$y, 
+                method = maximize_metric, metric = F1_score,pos_class = "yes",
+                     neg_class = "no")
+
+optimalCutoff$optimal_cutpoint
+
+pred_c50_1_validation_us = as.factor(ifelse(pred_c50_validation_us >= optimalCutoff$optimal_cutpoint, "yes", "no"))
+caret::confusionMatrix(validation_us_final_1$y,pred_c50_1_validation_us,positive="no")
+
+
+
+set.seed(42)
+c50_model_us<-C5.0(y~.,data = train_us_final,.trials=50)
+
+pred_c50_train_us <- predict(c50_model_us,newdata = train_us_final,type='prob')[,2]
+predictions_c50_train_us<-prediction(pred_c50_train_us,train_us_final$y)
+roc_perf_c50_train_us <- ROCR::performance(predictions_c50_train_us, "tpr", "fpr")
+
+pred_c50_us <- predict(c50_model_us,newdata = test,type='prob')[,2]
+predictions_c50_us<-prediction(pred_c50_us,test$y)
+roc_perf_c50_us <- ROCR::performance(predictions_c50_us, "tpr", "fpr")
+
+plot(roc_perf_c50_us,colorize=TRUE, lwd=2, main = "performer ROC: C5.0", col = "blue")
+lines(x=c(0, 1), y=c(0, 1), col="red", lwd=1, lty=3);
+lines(x=c(1, 0), y=c(0, 1), col="green", lwd=1, lty=4)
+
+test$y_1<-ifelse(as.character(test$y)=="yes",1,0)
+plotROC(actuals=test$y_1,predictedScores=pred_c50_us)
+
+test<-test%>%
+  select(-one_of('y_1'))
+
+train_us_final$y_1<-ifelse(as.character(train_us_final$y)=="yes",1,0)
+plotROC(actuals=train_us_final$y_1,predictedScores=pred_c50_train_us)
+
+train_us_final<-train_us_final%>%
+  select(-one_of('y_1'))
+
+test$y_1<-ifelse(as.character(test$y)=="yes",1,0)
+x_c50_us<-cbind(test,pred_c50_us)
+
+x_c50_us<-x_c50_us[order(x_c50_us$pred_c50_us,decreasing = TRUE),]
+
+x_c50_us$cumden <- cumsum(x_c50_us$y_1)/sum(x_c50_us$y_1)
+
+x_c50_us$perpop <- (seq(nrow(x_c50_us))/nrow(x_c50_us))*100
+
+plot(x_c50_us$perpop,x_c50_us$cumden,type="l",xlab="% of Population",ylab="% of yes")
+abline(v = 20, col = 'coral2', lwd = 3, lty = 2)
+with(x_c50_us[x_c50_us$perpop==min(x_c50_us[x_c50_us$perpop>=20,"perpop"]),],text(x = perpop, y = cumden, labels = round(cumden,3), pos = 4))
+
+
+optimalCutoff <- cutpointr(x=pred_c50_us, class=test$y, 
+                method = maximize_metric, metric = F1_score,pos_class = "yes",
+                     neg_class = "no")
+
+optimalCutoff$optimal_cutpoint
+
+test<-test%>%
+  select(-one_of('y_1'))
+pred_c50_1_us = as.factor(ifelse(pred_c50_us >= optimalCutoff$optimal_cutpoint, "yes", "no"))
+caret::confusionMatrix(test$y,pred_c50_1_us,positive="no")
+
+
+pred_c50_1_us = as.factor(ifelse(pred_c50_us >= 0.5, "yes", "no"))
+caret::confusionMatrix(test$y,pred_c50_1_us)
+
 
 ```
 
 
-##explaination with lime
+##CART with undersampling
+
 ```{r}
-library("lime")
 
-train_lime<-train%>%
-  dplyr::select(-one_of('y'))
+train.control <- trainControl(
+                           method = "repeatedcv",
+                           number = 5, 
+                           repeats = 5,
+                           summaryFunction = twoClassSummary, 
+                           classProbs = TRUE
+                           )
 
-pred_rf_1 = as.factor(ifelse(pred_rf >= 0.06, "yes", "no"))
-test_lime<-cbind(test,pred_rf_1,pred_rf)
+set.seed(42)
+cluster <- makeCluster(detectCores() - 1) # convention to leave 1 core for OS
+registerDoParallel(cluster)
+cart_model_1_tune <- caret::train(y~., data=train_us_final_1, 
+                 method = "rpart2", 
+                 tuneLength = 6,
+                 trControl = train.control,
+                 metric = "ROC"
+               )
+stopCluster(cluster)
+registerDoSEQ()
 
-#five instances where response was yes and correctly predcted
+cart_model_1_tune
+
+pred_cart_validation_us <- predict(cart_model_1_tune,newdata = validation_us_final_1,type='prob')[,2]
+predictions_cart_validation_us<-prediction(pred_cart_validation_us,validation_us_final_1$y)
+roc_perf_cart_validation_us <- ROCR::performance(predictions_cart_validation_us, "tpr", "fpr")
+
+plot(roc_perf_cart_validation_us,colorize=TRUE, lwd=2, main = "performer ROC: cart", col = "blue")
+lines(x=c(0, 1), y=c(0, 1), col="red", lwd=1, lty=3);
+lines(x=c(1, 0), y=c(0, 1), col="green", lwd=1, lty=4)
+
+validation_us_final_1$y_1<-ifelse(as.character(validation_us_final_1$y)=="yes",1,0)
+plotROC(actuals=validation_us_final_1$y_1,predictedScores=pred_cart_validation_us)
+
+validation_us_final_1<-validation_us_final_1%>%
+  select(-one_of('y_1'))
+
+optimalCutoff <- cutpointr(pred_cart_validation_us, validation_us_final_1$y, 
+                method = maximize_metric, metric = F1_score,pos_class = "yes",
+                     neg_class = "no")
+
+optimalCutoff$optimal_cutpoint
+
+pred_cart_1_validation_us = as.factor(ifelse(pred_cart_validation_us >= optimalCutoff$optimal_cutpoint, "yes", "no"))
+caret::confusionMatrix(validation_us_final_1$y,pred_cart_1_validation_us,positive="no")
+
+
+set.seed(42)
+
+cart_model_us<-rpart(y ~ ., train_us_final,method = 'class',control=rpart.control(maxdepth=10))
+
+cart_model_us
+
+fancyRpartPlot(cart_model_us)
+
+pred_cart_us <- predict(cart_model_us,newdata = test,type='prob')[,2]
+predictions_cart_us<-prediction(pred_cart_us,test$y)
+roc_perf_cart_us <- ROCR::performance(predictions_cart_us, "tpr", "fpr")
+
+pred_cart_train_us <- predict(cart_model_us,newdata = train_us_final,type='prob')[,2]
+predictions_cart_train_us<-prediction(pred_cart_train_us,train_us_final$y)
+roc_perf_cart_train_us <- ROCR::performance(predictions_cart_train_us, "tpr", "fpr")
+
+
+plot(roc_perf_cart_us,colorize=TRUE, lwd=2, main = "performer ROC: CART", col = "blue")
+lines(x=c(0, 1), y=c(0, 1), col="red", lwd=1, lty=3);
+lines(x=c(1, 0), y=c(0, 1), col="green", lwd=1, lty=4)
+
+test$y_1<-ifelse(as.character(test$y)=="yes",1,0)
+plotROC(actuals=test$y_1,predictedScores=pred_cart_us)
+
+test<-test%>%
+  select(-one_of('y_1'))
+
+train_us_final$y_1<-ifelse(as.character(train_us_final$y)=="yes",1,0)
+plotROC(actuals=train_us_final$y_1,predictedScores=pred_cart_train_us)
+
+train_us_final<-train_us_final%>%
+  select(-one_of('y_1'))
+
+
+test$y_1<-ifelse(as.character(test$y)=="yes",1,0)
+x_cart_us<-cbind(test,pred_cart_us)
+
+x_cart_us<-x_cart_us[order(x_cart_us$pred_cart_us,decreasing = TRUE),]
+
+
+x_cart_us$cumden <- cumsum(x_cart_us$y_1)/sum(x_cart_us$y_1)
+
+x_cart_us$perpop <- (seq(nrow(x_cart_us))/nrow(x_cart_us))*100
+
+plot(x_cart_us$perpop,x_cart_us$cumden,type="l",xlab="% of Population",ylab="% of yes")
+abline(v = 20, col = 'coral2', lwd = 3, lty = 2)
+with(x_cart_us[x_cart_us$perpop==min(x_cart_us[x_cart_us$perpop>=20,"perpop"]),],text(x = perpop, y = cumden, labels = round(cumden,3), pos = 4))
+
+optimalCutoff <- cutpointr(x=pred_cart_us, class=test$y, 
+                method = maximize_metric, metric = F1_score,pos_class = "yes",
+                     neg_class = "no")
+
+optimalCutoff$optimal_cutpoint
+
+
+test<-test%>%
+  select(-one_of('y_1'))
+pred_cart_1_us = as.factor(ifelse(pred_cart_us >= optimalCutoff$optimal_cutpoint, "yes", "no"))
+caret::confusionMatrix(test$y,pred_cart_1_us)
+
+pred_cart_1_us = as.factor(ifelse(pred_cart_us >= 0.5, "yes", "no"))
+caret::confusionMatrix(test$y,pred_cart_1_us)
+
+
+```
+
+#Random forest with undersampling
+
+```{r}
+ctrl <- trainControl(method="repeatedcv",number = 5,repeats = 5,
+               classProbs = TRUE,summaryFunction = twoClassSummary,allowParallel = TRUE)
+
+cluster <- makeCluster(detectCores() - 1) # convention to leave 1 core for OS
+registerDoParallel(cluster)
+
+set.seed(42)
+rf_fit_us_tune<- caret::train(y~.,data=train_us_final_1, method='rf',importance=TRUE,
+                       metric = "ROC",
+                       trControl =ctrl,ntree=500,tuneGrid=expand.grid(.mtry =5:10),nodesize=25)
+stopCluster(cluster)
+registerDoSEQ()
+
+# saveRDS(rf_fit_us_tune, "rf_fit_us_tune.rds")
+# rf_fit_us_tune <- readRDS("rf_fit_us_tune.rds")
+
+rf_fit_us_tune
+
+pred_rf_validation_us <- predict(rf_fit_us_tune,newdata = validation_us_final_1,type='prob')[,2]
+predictions_rf_validation_us<-prediction(pred_rf_validation_us,validation_us_final_1$y)
+roc_perf_rf_validation_us <- ROCR::performance(predictions_rf_validation_us, "tpr", "fpr")
+
+plot(roc_perf_rf_validation_us,colorize=TRUE, lwd=2, main = "performer ROC: RF", col = "blue")
+lines(x=c(0, 1), y=c(0, 1), col="red", lwd=1, lty=3);
+lines(x=c(1, 0), y=c(0, 1), col="green", lwd=1, lty=4)
+
+validation_us_final_1$y_1<-ifelse(as.character(validation_us_final_1$y)=="yes",1,0)
+plotROC(actuals=validation_us_final_1$y_1,predictedScores=pred_rf_validation_us)
+
+validation_us_final_1<-validation_us_final_1%>%
+  select(-one_of('y_1'))
+
+optimalCutoff <- cutpointr(pred_rf_validation_us, validation_us_final_1$y, 
+                method = maximize_metric, metric = F1_score,pos_class = "yes",
+                     neg_class = "no")
+
+optimalCutoff$optimal_cutpoint
+
+pred_rf_1_validation_us = as.factor(ifelse(pred_rf_validation_us >= optimalCutoff$optimal_cutpoint, "yes", "no"))
+caret::confusionMatrix(validation_us_final_1$y,pred_rf_1_validation_us,positive="no")
+
+ctrl <- trainControl(method="repeatedcv",number = 5,repeats = 5,
+               classProbs = TRUE,summaryFunction = twoClassSummary,allowParallel = TRUE)
+
+cluster <- makeCluster(detectCores() - 1) # convention to leave 1 core for OS
+registerDoParallel(cluster)
+
+set.seed(42)
+rf_fit_1_us<- caret::train(y~.,data=train_us_final, method='rf',importance=TRUE,
+                       metric = "ROC",
+                       trControl =ctrl,ntree=500,tuneGrid=expand.grid(.mtry =10),nodesize=25)
+stopCluster(cluster)
+registerDoSEQ()
+
+# saveRDS(rf_fit_1_us, "rf_fit_1_us.rds")
+# rf_fit_1_us <- readRDS("rf_fit_1_us.rds")
+rf_fit_1_us
+
+pred_rf_us <- predict(rf_fit_1_us,newdata = test,type='prob')[,2]
+predictions_rf_us<-prediction(pred_rf_us,test$y)
+roc_perf_rf_us <- ROCR::performance(predictions_rf_us, "tpr", "fpr")
+
+plot(roc_perf_rf_us,colorize=TRUE, lwd=2, main = "performer ROC: Random Forest", col = "blue")
+lines(x=c(0, 1), y=c(0, 1), col="red", lwd=1, lty=3);
+lines(x=c(1, 0), y=c(0, 1), col="green", lwd=1, lty=4)
+
+pred_rf_train_us <- predict(rf_fit_1_us,newdata = train_us_final,type='prob')[,2]
+predictions_rf_train_us<-prediction(pred_rf_train_us,train_us_final$y)
+roc_perf_rf_train_us <- ROCR::performance(predictions_rf_train_us, "tpr", "fpr")
+
+test$y_1<-ifelse(as.character(test$y)=="yes",1,0)
+plotROC(actuals=test$y_1,predictedScores=pred_rf_us)
+
+test<-test%>%
+  select(-one_of('y_1'))
+
+train_us_final$y_1<-ifelse(as.character(train_us_final$y)=="yes",1,0)
+plotROC(actuals=train_us_final$y_1,predictedScores=pred_rf_train_us)
+
+
+train_us_final<-train_us_final%>%
+  select(-one_of('y_1'))
+
+
+test$y_1<-ifelse(as.character(test$y)=="yes",1,0)
+x_rf_us<-cbind(test,pred_rf_us)
+
+x_rf_us<-x_rf_us[order(x_rf_us$pred_rf_us,decreasing = TRUE),]
+
+
+x_rf_us$cumden <- cumsum(x_rf_us$y_1)/sum(x_rf_us$y_1)
+
+x_rf_us$perpop <- (seq(nrow(x_rf_us))/nrow(x_rf_us))*100
+
+y_rf_us<-x_rf_us[x_rf_us$perpop==min(x_rf_us[x_rf_us$perpop>=20,"perpop"]),c("perpop","cumden")]
+
+
+plot(x_rf_us$perpop,x_rf_us$cumden,type="l",xlab="% of Population",ylab="% of yes")
+abline(v = 20, col = 'coral2', lwd = 3, lty = 2)
+with(x_rf_us[x_rf_us$perpop==min(x_rf_us[x_rf_us$perpop>=20,"perpop"]),],text(x = perpop, y = cumden, labels = round(cumden,3), pos = 4))
+
+optimalCutoff <- cutpointr(x=pred_rf_us, class=test$y,
+                method = maximize_metric, metric = F1_score,pos_class = "yes",
+                     neg_class = "no")
+
+optimalCutoff$optimal_cutpoint
+
+test<-test%>%
+  select(-one_of('y_1'))
+pred_rf_1_us = as.factor(ifelse(pred_rf_us >= optimalCutoff$optimal_cutpoint, "yes", "no"))
+caret::confusionMatrix(test$y,pred_rf_1_us)
+
+pred_rf_1_us = as.factor(ifelse(pred_rf_us >= 0.5, "yes", "no"))
+caret::confusionMatrix(test$y,pred_rf_1_us)
+
+```
+
+
+##Plotting all AUC curves together with undersampling
+```{r}
+plot(roc_perf_c50_us,lwd=2, main = "Y ROC: All models", col = "blue")
+
+plot(roc_perf_cart_us, add = TRUE, col = "red")
+plot(roc_perf_rf_us, add = TRUE, col = "black")
+
+legend( "bottomright", c("C50: AUC=92.75% ", "CART: AUC=85.74%", "Random Forest: AUC=94.37%"),
+text.col=c("blue", "red", "black") )
+
+
+```
+
+
+##Plotting all AUC curves together with undersampling
+
+```{r}
+plot(roc_perf_c50_train_us,lwd=2, main = "Y ROC: All models: training set", col = "blue")
+
+plot(roc_perf_cart_train_us, add = TRUE, col = "red")
+plot(roc_perf_rf_train_us, add = TRUE, col = "black")
+
+legend( "bottomright", c("C50: AUC=95.15% ", "CART: AUC=86.39%", "Random Forest: AUC=97.75%"),
+text.col=c("blue", "red", "black") )
+
+```
+
+##explaination with lime of model with undersampling
+
+```{r}
+library(lime)
+
+train_lime<-train_us_final%>%
+  select(-one_of('y'))
+
+pred_rf_1 = as.factor(ifelse(pred_rf_us >= optimalCutoff$optimal_cutpoint, "yes", "no"))
+test_lime<-cbind(test,pred_rf_1,pred_rf_us)
+
 test_lime_correct_pred<-test_lime%>%
-  filter(pred_rf>=0.5)%>%
+  filter(pred_rf_us>=optimalCutoff$optimal_cutpoint)%>%
   filter(y==pred_rf_1)%>%
   filter(as.character(y)=='yes')%>%
   head(5)%>%
-  dplyr::select(-one_of(c('y','pred_rf_1','pred_rf')))
+  select(-one_of(c('y','pred_rf_1','pred_rf_us')))
 
+rf_explainer_lime <- lime(train_lime, rf_fit_1_us, n_bins = 5)
 
-#training lime model
-rf_explainer_lime <- lime(train_lime, rf_fit, n_bins = 5)
-
-
-#explaining the output cases
-
+#explaining the output cases with correct prediction
+# 
 start.time <- Sys.time()
-
+# 
 explainer_pred<-explain(test_lime_correct_pred[1,], explainer = rf_explainer_lime,
   n_permutations = 5000,
   dist_fun = "manhattan",
@@ -468,6 +980,7 @@ time.taken_2 <- end.time - start.time
 
 plot_features(explainer_pred, ncol = 2)
 
+
 start.time <- Sys.time()
 
 explainer_pred<-explain(test_lime_correct_pred[3,], explainer = rf_explainer_lime,
@@ -484,6 +997,7 @@ end.time <- Sys.time()
 time.taken_3 <- end.time - start.time
 
 plot_features(explainer_pred, ncol = 2)
+
 
 start.time <- Sys.time()
 
@@ -502,6 +1016,7 @@ time.taken_4 <- end.time - start.time
 
 plot_features(explainer_pred, ncol = 2)
 
+
 start.time <- Sys.time()
 
 explainer_pred<-explain(test_lime_correct_pred[5,], explainer = rf_explainer_lime,
@@ -519,35 +1034,124 @@ time.taken_5 <- end.time - start.time
 
 plot_features(explainer_pred, ncol = 2)
 
+test_lime_correct_pred_3<-test_lime%>%
+  filter(pred_rf_us<optimalCutoff$optimal_cutpoint)%>%
+  filter(as.character(y)=='yes')%>%
+  head(5)%>%
+  select(-one_of(c('y','pred_rf_1','pred_rf_us')))
 
-avg_time_taken_lime<-(time.taken_1+time.taken_2+time.taken_3+time.taken_4+time.taken_5)/5
+rf_explainer_lime <- lime(train_lime, rf_fit_1_us, n_bins = 5)
 
-#average time taken to run one lime instance
+
+#explaining the output cases with wrong prediction
+
+start.time <- Sys.time()
+
+explainer_pred<-explain(test_lime_correct_pred_3[1,], explainer = rf_explainer_lime,
+  n_permutations = 5000,
+  dist_fun = "manhattan",
+  kernel_width = 2,
+  n_features = 20,
+  feature_select = "highest_weights",
+  label = 'yes'
+  )
+
+end.time <- Sys.time()
+
+time.taken_6 <- end.time - start.time
+
+plot_features(explainer_pred, ncol = 2)
+
+# # plot_explanations(explainer_pred)
+start.time <- Sys.time()
+
+explainer_pred<-explain(test_lime_correct_pred_3[2,], explainer = rf_explainer_lime,
+  n_permutations = 5000,
+  dist_fun = "manhattan",
+  kernel_width = 2,
+  n_features = 20,
+  feature_select = "highest_weights",
+  label = 'yes'
+  )
+
+end.time <- Sys.time()
+
+time.taken_7 <- end.time - start.time
+
+plot_features(explainer_pred, ncol = 2)
+
+start.time <- Sys.time()
+
+explainer_pred<-explain(test_lime_correct_pred_3[3,], explainer = rf_explainer_lime,
+  n_permutations = 5000,
+  dist_fun = "manhattan",
+  kernel_width = 2,
+  n_features = 20,
+  feature_select = "highest_weights",
+  label = 'yes'
+  )
+
+end.time <- Sys.time()
+
+time.taken_8 <- end.time - start.time
+
+plot_features(explainer_pred, ncol = 2)
+
+start.time <- Sys.time()
+
+explainer_pred<-explain(test_lime_correct_pred_3[4,], explainer = rf_explainer_lime,
+  n_permutations = 5000,
+  dist_fun = "manhattan",
+  kernel_width = 2,
+  n_features = 20,
+  feature_select = "highest_weights",
+  label = 'yes'
+  )
+
+end.time <- Sys.time()
+
+time.taken_9 <- end.time - start.time
+
+plot_features(explainer_pred, ncol = 2)
+
+start.time <- Sys.time()
+
+explainer_pred<-explain(test_lime_correct_pred_3[5,], explainer = rf_explainer_lime,
+  n_permutations = 5000,
+  dist_fun = "manhattan",
+  kernel_width = 2,
+  n_features = 20,
+  feature_select = "highest_weights",
+  label = 'yes'
+  )
+
+plot_features(explainer_pred, ncol = 2)
+
+end.time <- Sys.time()
+
+time.taken_10 <- end.time - start.time
+
+
+avg_time_taken_lime<-(time.taken_1+time.taken_2+time.taken_3+time.taken_4+time.taken_5+
+                   time.taken_6+time.taken_7+time.taken_8+time.taken_9+time.taken_10)/10
+
 avg_time_taken_lime
 
 
-```
+library(iml)
 
 
-```{r}
-
-library("iml")
-
-#selecting 5 instances which were corrected predicted
 test_lime_correct_pred<-test_lime%>%
-  filter(pred_rf>=0.5)%>%
+  filter(pred_rf_us>=optimalCutoff$optimal_cutpoint)%>%
   filter(y==pred_rf_1)%>%
   filter(as.character(y)=='yes')%>%
   head(5)%>%
-  dplyr::select(-one_of(c('y','pred_rf_1','pred_rf')))
+  select(-one_of(c('y','pred_rf_1','pred_rf_us')))
 
 
 
-#training shapely values model
-predictor <- Predictor$new(rf_fit, data = train, class="yes",type = "prob")
-
-
-#plotting individual instances
+predictor <- Predictor$new(rf_fit_1_us, data = train_us_final, class="yes",type = "prob")
+# 
 start.time <- Sys.time()
 
 shapley_values <- Shapley$new(predictor, x.interest = test_lime_correct_pred[1, ],sample.size = 5000)
@@ -557,6 +1161,7 @@ end.time <- Sys.time()
 time.taken_1 <- end.time - start.time
 
 shapley_values$plot()
+
 
 start.time <- Sys.time()
 
@@ -568,6 +1173,7 @@ time.taken_2 <- end.time - start.time
 
 shapley_values$plot()
 
+
 start.time <- Sys.time()
 
 shapley_values <- Shapley$new(predictor, x.interest = test_lime_correct_pred[3, ],sample.size = 5000)
@@ -578,6 +1184,7 @@ time.taken_3 <- end.time - start.time
 
 shapley_values$plot()
 
+
 start.time <- Sys.time()
 
 shapley_values <- Shapley$new(predictor, x.interest = test_lime_correct_pred[4, ],sample.size = 5000)
@@ -587,6 +1194,7 @@ end.time <- Sys.time()
 time.taken_4 <- end.time - start.time
 
 shapley_values$plot()
+
 
 start.time <- Sys.time()
 
@@ -599,118 +1207,127 @@ time.taken_5 <- end.time - start.time
 shapley_values$plot()
 
 
-avg_time_taken_shapley_values<-(time.taken_1+time.taken_2+time.taken_3+time.taken_4+time.taken_5)/5
+test_lime_correct_pred_2<-test_lime%>%
+  filter(pred_rf_us<optimalCutoff$optimal_cutpoint )%>%
+  filter(as.character(y)=='yes')%>%
+  head(5)%>%
+  select(-one_of(c('y','pred_rf_1','pred_rf_us')))
+# 
+start.time <- Sys.time()
 
-#average time taken to run one instance
+shapley_values <- Shapley$new(predictor, x.interest = test_lime_correct_pred_2[1, ],sample.size = 5000)
+
+end.time <- Sys.time()
+
+time.taken_6 <- end.time - start.time
+
+shapley_values$plot()
+
+
+start.time <- Sys.time()
+
+shapley_values <- Shapley$new(predictor, x.interest = test_lime_correct_pred_2[2, ],sample.size = 5000)
+
+end.time <- Sys.time()
+
+time.taken_7 <- end.time - start.time
+
+shapley_values$plot()
+
+
+start.time <- Sys.time()
+
+shapley_values <- Shapley$new(predictor, x.interest = test_lime_correct_pred_2[3, ],sample.size = 5000)
+
+end.time <- Sys.time()
+
+time.taken_8 <- end.time - start.time
+
+shapley_values$plot()
+
+
+start.time <- Sys.time()
+
+shapley_values <- Shapley$new(predictor, x.interest = test_lime_correct_pred_2[4, ],sample.size = 5000)
+
+end.time <- Sys.time()
+
+time.taken_9 <- end.time - start.time
+
+shapley_values$plot()
+
+start.time <- Sys.time()
+
+shapley_values <- Shapley$new(predictor, x.interest = test_lime_correct_pred_2[5, ],sample.size = 5000)
+
+end.time <- Sys.time()
+
+time.taken_10 <- end.time - start.time
+
+shapley_values$plot()
+
+avg_time_taken_shapley_values<-(time.taken_1+time.taken_2+time.taken_3+time.taken_4+time.taken_5+
+                   time.taken_6+time.taken_7+time.taken_8+time.taken_9+time.taken_10)/10
+# 
 avg_time_taken_shapley_values
 
+```
+
+#global importance with and without undersampling
+```{r}
+#without undersampling
+plot(varImp(rf_fit_1))
+
+#with undersampling
+plot(varImp(rf_fit_1_us))
 
 
 ```
 
+#lassologistic regression
 ```{r}
+library(glmnet)
+library(tidyverse)
 
-library("DALEX")
-library("reticulate")
-library("shapper")
+x <- model.matrix(y~., train_us_final)[,-21]
 
-test_lime_correct_pred_1<-test_lime%>%
-  filter(pred_rf>=0.5)%>%
-  filter(y==pred_rf_1)%>%
-  filter(as.character(y)=='yes')%>%
-  head(5)%>%
-  select(-one_of(c('y','pred_rf_1','pred_rf')))
+y <- ifelse(train_us_final$y == "yes", 1, 0)
 
 
+set.seed(42)
+cv.lasso <- cv.glmnet(x, y, alpha = 1, family = "binomial")
+plot(cv.lasso)
 
-train_shap<-train%>%
-  dplyr::select(-one_of('y'))
+cv.lasso
+cv.lasso$lambda.1se
 
-#predicting using shapper function
-p_function <- function(model, data) predict(model, newdata = data, type = "prob")
+logistic_reg_lasso <- glmnet(x, y, alpha = 1, family = "binomial",
+                      lambda = cv.lasso$lambda.1se)
 
+x.test <- model.matrix(y ~., test)[,-21]
 
-#plotting individual instances
-start.time <- Sys.time()
+pred_logistic_us <- predict(logistic_reg_lasso,newx = x.test,type="response")
 
-ive_rf <- individual_variable_effect(rf_fit, data = train_shap, predict_function = p_function,
-            new_observation = test_lime_correct_pred_1[1, ], nsamples = 100)
+optimalCutoff <- cutpointr(x=pred_logistic_us, class=test$y,
+                method = maximize_metric, metric = F1_score,pos_class = "yes",
+                     neg_class = "no")
 
-end.time <- Sys.time()
+optimalCutoff$optimal_cutpoint
 
-time.taken_1 <- end.time - start.time
+pred_logistic_1_us = as.factor(ifelse(pred_logistic_us >= optimalCutoff$optimal_cutpoint, "yes", "no"))
+caret::confusionMatrix(test$y,pred_logistic_1_us)
 
-# plot(ive_rf)
-
-
-ive_rf_filtered <- dplyr::filter(ive_rf, `_ylevel_` =="yes")
-shapper:::plot.individual_variable_effect(ive_rf_filtered)
-
-start.time <- Sys.time()
-
-ive_rf <- individual_variable_effect(rf_fit, data = train_shap, predict_function = p_function,
-            new_observation = test_lime_correct_pred_1[2, ], nsamples = 100)
-
-end.time <- Sys.time()
-
-time.taken_2 <- end.time - start.time
-
-# plot(ive_rf)
+pred_logistic_1_us = as.factor(ifelse(pred_logistic_us >= 0.5, "yes", "no"))
+caret::confusionMatrix(test$y,pred_logistic_1_us)
 
 
-ive_rf_filtered <- dplyr::filter(ive_rf, `_ylevel_` =="yes")
-shapper:::plot.individual_variable_effect(ive_rf_filtered)
+test$y_1<-ifelse(as.character(test$y)=="yes",1,0)
+plotROC(actuals=test$y_1,predictedScores=pred_logistic_us)
 
-start.time <- Sys.time()
+test<-test%>%
+  select(-one_of('y_1'))
 
-ive_rf <- individual_variable_effect(rf_fit, data = train_shap, predict_function = p_function,
-            new_observation = test_lime_correct_pred_1[3, ], nsamples = 100)
-
-
-end.time <- Sys.time()
-
-time.taken_3 <- end.time - start.time
-# plot(ive_rf)
-
-
-ive_rf_filtered <- dplyr::filter(ive_rf, `_ylevel_` =="yes")
-shapper:::plot.individual_variable_effect(ive_rf_filtered)
-
-
-start.time <- Sys.time()
-
-ive_rf <- individual_variable_effect(rf_fit, data = train_shap, predict_function = p_function,
-            new_observation = test_lime_correct_pred_1[4, ], nsamples = 100)
-
-
-end.time <- Sys.time()
-
-time.taken_4 <- end.time - start.time
-
-
-ive_rf_filtered <- dplyr::filter(ive_rf, `_ylevel_` =="yes")
-shapper:::plot.individual_variable_effect(ive_rf_filtered)
-
-
-start.time <- Sys.time()
-
-ive_rf <- individual_variable_effect(rf_fit, data = train_shap, predict_function = p_function,
-            new_observation = test_lime_correct_pred_1[5, ], nsamples = 100)
-
-
-end.time <- Sys.time()
-
-time.taken_5 <- end.time - start.time
-
-
-ive_rf_filtered <- dplyr::filter(ive_rf, `_ylevel_` =="yes")
-shapper:::plot.individual_variable_effect(ive_rf_filtered)
-
-
-
-avg_time_taken_shap<-(time.taken_1+time.taken_2+time.taken_3+time.taken_4+time.taken_5)/5
-
-avg_time_taken_shap
+coef(cv.lasso, cv.lasso$lambda.1se)
 
 
 ```
